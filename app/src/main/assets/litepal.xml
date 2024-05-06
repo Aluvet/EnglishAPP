@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<litepal>
+    <dbname value="englishLearning"></dbname>
+    <version value="1"></version>
+    <list>
+        <mapping class="com.example.overapp.database.User"></mapping>
+        <mapping class="com.example.overapp.database.Word"></mapping>
+        <mapping class="com.example.overapp.database.UserData"></mapping>
+        <mapping class="com.example.overapp.database.Interpretation"></mapping>
+        <mapping class="com.example.overapp.database.Phrase"></mapping>
+        <mapping class="com.example.overapp.database.Sentence"></mapping>
+        <mapping class="com.example.overapp.database.Sentence"></mapping>
+        <mapping class="com.example.overapp.database.UserConfig"></mapping>
+        <mapping class="com.example.overapp.database.DailyData"></mapping>
+        <mapping class="com.example.overapp.database.WordFolder"></mapping>
+        <mapping class="com.example.overapp.database.FolderLinkWord"></mapping>
+        <mapping class="com.example.overapp.database.LearnTime"></mapping>
+    </list>
+</litepal>
