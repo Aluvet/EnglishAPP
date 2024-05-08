@@ -128,18 +128,35 @@ public class WordsControllor {
         needReviewWords.clear();
         justLearnedWords.clear();
         // LitePal准备相关数据
-        // 查询数据库中“刚刚学过”并且“尚未掌握”的单词列表,即复习选错的单词
+        // 查询数据库中“刚刚学过”并且“未复习过”的单词列表,即复习选错的单词
         List<Word> notReviewAtTimeList = LitePal.where("justLearned = ? and isLearned = ?", "1", "0").select("wordId").find(Word.class);
         // 浅度复习候选条件：查询数据库中“已经学习过”且“掌握程度小于10”的单词列表
         List<Word> littleReviewList = LitePal.where("isLearned = ? and masterDegree < ?", "1", "10").select("wordId").find(Word.class);
         // 深度复习候选条件：查询数据库中“掌握程度为10”的单词列表
         List<Word> deepReviewList = LitePal.where("masterDegree = ?", "10").select("wordId").find(Word.class);
         // (1).先找哪些单词未及时深度复习或者已经到了深度学习的阶段，找到的同时加入到候选复习单词列表
+        // 深度掌握次数
+        /*
+         * 前提：掌握程度已达到10
+         * 当深度次数为0时，记下次复习时间=上次已掌握时间+4天，若及时复习，更新上次已掌握时间
+         * 当深度次数为1时，记下次复习时间=上次已掌握时间+3天，若及时复习，更新上次已掌握时间
+         * 当深度次数为2时，记下次复习时间=上次已掌握时间+8天，若及时复习，更新上次已掌握时间
+         * 当深度次数为3时，记已经完全掌握
+         *
+         * 检测哪些单词未及时深度复习：
+         * 首先单词必须掌握程度=10，其次单词上次掌握的时间与现在的时间进行对比
+         * （1）要是深度次数为0，且两者时间之差为大于4天，说明未深度复习
+         * （2）要是深度次数为1，且两者时间之差为大于3天，说明未深度复习
+         * （3）要是深度次数为2，且两者时间之差为大于8天，说明未深度复习
+         * （#）若未及时深度复习，一律将其单词掌握程度-2（10→8）
+         *
+         * */
         for (Word word : deepReviewList) {
             switch (word.getDeepMasterTimes()) {
+//                检查深度学习为0，判断日期，大于4天创建新的word对象，且将掌握程度设为8，更新数据库后添加到列表中，四天直接加入复习列表，进行深度复习
                 case 0:
                     try {
-                        // 说明未及时深度复习
+                        // 说明未及时深度复习,dayInternal查询各多少天
                         if (TimeController.daysInternal(word.getLastMasterTime(), TimeController.getCurrentDateStamp()) > 4) {
                             Word newWord = new Word();
                             newWord.setMasterDegree(8);
@@ -156,8 +173,9 @@ public class WordsControllor {
                     }
                     break;
                 case 1:
+//                    同上
                     try {
-                        // 说明未及时深度复习
+                        // 说明未及时深度复习，大于三天掌握程度直接设为8，等于三直接加入列表
                         if (TimeController.daysInternal(word.getLastMasterTime(), TimeController.getCurrentDateStamp()) > 3) {
                             Word newWord = new Word();
                             newWord.setMasterDegree(8);
@@ -175,6 +193,7 @@ public class WordsControllor {
                     break;
                 case 2:
                     try {
+//                        深度学习为2，大于8，也职位8，保存，等于8，复习
                         // 说明未及时深度复习
                         if (TimeController.daysInternal(word.getLastMasterTime(), TimeController.getCurrentDateStamp()) > 8) {
                             Word newWord = new Word();
@@ -193,7 +212,7 @@ public class WordsControllor {
                     break;
             }
         }
-        // (2).把需浅度复习的单词也一并加入到候选复习单词列表
+        // (2).把需浅度复习的单词也一并加入到候选复习单词列表，将浅度复习的单词，加入复习
         for (Word word : littleReviewList) {
             needReviewWords.add(word.getWordId());
         }
@@ -210,10 +229,13 @@ public class WordsControllor {
         Log.d("WordsControllor", "learnNewWord--------------------------------------------------------");
         Log.d("WordsControllor", "learnNewWord" + "最后是我返回了值");
         Log.d("WordsControllor", "needLearnedWords.size=" + needLearnWords.size());
+//        需要学习的列表不为空，
         if (!needLearnWords.isEmpty()) {
+//            调用随机数，生成随机索引，返回单词id
             int index = NumberControl.getRandomNumber(0, needLearnWords.size() - 1);
             return needLearnWords.get(index);
         } else
+//            如果没有单词，直接返回-1
             return -1;
     }
 
@@ -223,6 +245,7 @@ public class WordsControllor {
         Log.d("WordsControllor", "learnNewWordDone--------------------------------------------------------");
         // 移除
         Log.d("WordsControllor", "before　size:" + needLearnWords.size());
+//        查看需要学习的列表中的单词id与当前学习的单词id是否相等，若相同直接移除
         for (int i = 0; i < needLearnWords.size(); ++i) {
             if (needLearnWords.get(i) == wordId) {
                 needLearnWords.remove(i);
@@ -234,15 +257,18 @@ public class WordsControllor {
         justLearnedWords.add(wordId);
         // 更新数据库数据
         Word word = new Word();
+//        设置为刚刚学过，但未复习
         word.setJustLearned(1);
         word.setToDefault("isNeedLearned");
         word.updateAll("wordId = ?", wordId + "");
     }
 
-    // 及时复习单词
+    // 复习上面处理的单词
     public static int reviewNewWord() {
         Log.d("WordsControllor", "reviewNewWord: 最后是我返回了值");
+//        临时需要复习单词的列表是否为空
         if (!justLearnedWords.isEmpty()) {
+//            随机单词id
             Log.d("WordsControllor", "-1=?" + justLearnedWords.size());
             int index = NumberControl.getRandomNumber(0, justLearnedWords.size() - 1);
             return justLearnedWords.get(index);
@@ -250,9 +276,12 @@ public class WordsControllor {
             return -1;
     }
 
-    // 及时复习完单词
+    // 复习完单词后进行处理，传入id ，以及判断是否正确
     public static void reviewNewWordDone(int wordId, boolean isAnswerRight) {
+//        liter查询id数据符合传入id，查找单词内容掌握程度，深度学习，测试次数
         List<Word> words = LitePal.where("wordId = ?", wordId + "").select("wordId", "word", "masterDegree", "ExamRightNum", "DeepMasterTimes").find(Word.class);
+//        回答正确，循环需要复习列表将对应id单词移除
+//        移除后，进行数据库更新操作
         if (isAnswerRight) {
             // 移除
             for (int i = 0; i < justLearnedWords.size(); ++i) {
@@ -261,29 +290,36 @@ public class WordsControllor {
                     break;
                 }
             }
-            // 更新数据库数据
+            // 更新数据库数据，设置复习完
             Word word = new Word();
             word.setIsLearned(1);
+            /*0-10：一次加2，防止掌握程度到10以上，只能到10*/
             // 如果回答正确，加2点掌握度，回答错误，不加掌握程度，继续背
             if (words.get(0).getMasterDegree() < 10) {
                 // 掌握程度+2
+//                不等于8加2就行
                 if (words.get(0).getMasterDegree() != 8)
                     word.setMasterDegree(words.get(0).getMasterDegree() + 2);
                 else
+//                    等于8直接设为10即可
                     word.setMasterDegree(10);
                 word.updateAll("wordId = ?", wordId + "");
-            } else {
+            }
+//            掌握程度为10，掌握程度就不会再发生改变，只改但当前单词的深度学习即可，并更新时间用于判端进行深度学习
+            else {
                 word.setDeepMasterTimes(words.get(0).getDeepMasterTimes() + 1);
                 word.setLastMasterTime(TimeController.getCurrentDateStamp());
             }
+//            更新复习时间
             word.setLastReviewTime(TimeController.getNowTimeStamp());
             word.updateAll("wordId = ?", wordId + "");
         }
     }
 
-    // 复习单词（随机抽取）
+    // 在复习列表中随机挑选需要复习的单词
     public static int reviewOneWord() {
         Log.d("WordsControllor", "reviewOneWord: 最后是我返回了值");
+//        需要复习列表不为空，随机挑选索引，得到单词id
         if (!needReviewWords.isEmpty()) {
             int index = NumberControl.getRandomNumber(0, needReviewWords.size() - 1);
             return needReviewWords.get(index);
@@ -291,9 +327,10 @@ public class WordsControllor {
             return -1;
     }
 
-    // 复习完该单词
+    // 对单，复习完单词，对测试
     public static void reviewOneWordDone(int wordId, boolean isAnswerRight) {
         List<Word> words = LitePal.where("wordId = ?", wordId + "").select("wordId", "word", "masterDegree", "ExamRightNum", "DeepMasterTimes").find(Word.class);
+//        判断回答正确，移除
         if (isAnswerRight) {
             // 移除需要复习列表
             for (int i = 0; i < needReviewWords.size(); ++i) {
@@ -302,8 +339,9 @@ public class WordsControllor {
                     break;
                 }
             }
-            // 说明只是浅度复习
+            // 掌握程度<10
             if (words.get(0).getMasterDegree() < 10) {
+//                新建单词更新测试的次数
                 Word word = new Word();
                 // 测试正确次数+1
                 word.setExamRightNum(1 + words.get(0).getExamRightNum());
@@ -333,12 +371,13 @@ public class WordsControllor {
     public static int isNewOrReviewAtTime() {
         return NumberControl.getRandomNumber(NEW_LEARN, REVIEW_AT_TIME);
     }
-
+//更新移除单词
     public static void removeOneWord(int wordId) {
         Log.d("WordsControllor", "removeOneWord: " + wordId);
         Log.d("WordsControllor", "之前");
         Log.d("WordsControllor", needLearnWords.toString());
         Log.d("WordsControllor", needReviewWords.toString());
+//        循环上边创建的列表，找到符合自己的单词id，用户点击id时要进行列表一处
         for (int i = 0; i < needLearnWords.size(); ++i) {
             if (wordId == needLearnWords.get(i))
                 needLearnWords.remove(i);
@@ -356,30 +395,38 @@ public class WordsControllor {
         Log.d("WordsControllor", needReviewWords.toString());
     }
 
-    // 决定学习顺序
+    // 设置学习顺序，根据具体学习单词个数，根据上面随机模式切换学习模式
     public static int whatToDo() {
         Log.d("WordsControllor", "needLearnWordsSize=" + needLearnWords.size());
         Log.d("WordsControllor", "justLearnedWords=" + justLearnedWords.size());
         Log.d("WordsControllor", "needReViewWords=" + needReviewWords.size());
+//学习模式
         if (!needLearnWords.isEmpty()) {
+//         学完的大于需要学习单词的一般，转化模式，复习测试
             if (justLearnedWords.size() > (needLearnWords.size() / 2)) {
                 Log.d("WordsControllor", "接下来是随机模式");
                 int nowMode = isNewOrReviewAtTime();
                 Log.d("WordsControllor", "whatToDo: " + nowMode);
                 return nowMode;
             } else {
+//               小于接着学
                 Log.d("WordsControllor", "接下来是新学模式");
                 return NEW_LEARN;
             }
-        } else {
+        }
+//        空，复习
+        else {
+//            刚学过的不为空直接复习
             if (!justLearnedWords.isEmpty()) {
                 Log.d("WordsControllor", "接下来是及时复习模式");
                 return REVIEW_AT_TIME;
             } else {
+//                为空但需要复习的单词不为空，一般复习
                 if (!needReviewWords.isEmpty()) {
                     Log.d("WordsControllor", "接下来是一般复习模式");
                     return REVIEW_GENERAL;
                 } else {
+//                    全为空时，都以学完
                     Log.d("WordsControllor", "完成");
                     return TODAY_MASK_DONE;
                 }

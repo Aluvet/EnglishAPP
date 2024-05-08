@@ -1,7 +1,7 @@
 package com.example.overapp.database;
 
 import org.litepal.crud.LitePalSupport;
-
+//后台服务器用
 public class LearnTime extends LitePalSupport {
 
     // 日期

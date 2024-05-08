@@ -185,66 +185,86 @@ public static String handleBingPicResponse(String response) {
     }
 }
 */
-    //欢迎界面的数据，使用GSON进行数据分析和保存，定义公共类
-    public static void analyseJsonAndSave() {
+//欢迎界面的数据，使用GSON进行数据分析和保存，定义公共类
+public static void analyseJsonAndSave() {
 //        字节数组，垂直，水平图片数组
-        byte[] imgVertical;
-        byte[] imgHorizontal;
+    byte[] imgVertical;
+    byte[] imgHorizontal;
 //        每日一句英文
-        String dailyEn;
-        String result = "", json, tem;
+    String dailyEn;
+    String result = "", json, tem;
 //        进行每日数据获取解析前，先清空相关数据，防止数据过多
-        LitePal.deleteAll(DailyData.class);
+    LitePal.deleteAll(DailyData.class);
 //        创建实例进行相关操作
-        DailyData dailyData = new DailyData();
-        try {
+    DailyData dailyData = new DailyData();
+    try {
 //            try---catch 中 try写入主要操作，
-            json = HttpHelper.requestResult(ConstantData.IMG_API);
-            Log.d("BaseAcyivity", "数据" + json);
+        json = HttpHelper.requestResult(ConstantData.IMG_API);
+        Log.d("BaseAcyivity", "数据" + json);
 //            创建一个Gson对象，并进行JSON数据的反序列化。
-            Gson gson = new Gson();
-            JsonBing jsonBing = gson.fromJson(json, JsonBing.class);
-            Log.d("BaseAcyivity", "prepareDailyData: " + jsonBing.toString());
+        Gson gson = new Gson();
+        JsonBing jsonBing = gson.fromJson(json, JsonBing.class);
+        Log.d("BaseAcyivity", "prepareDailyData: " + jsonBing.toString());
 //         拼接   构造图片的URL，并将其存储在tem
-            tem = ConstantData.IMG_API_BEFORE + jsonBing.getImages().get(0).getUrl();
-            Log.d("BaseAcyivity", "URL1:" + tem);
+        tem = ConstantData.IMG_API_BEFORE + jsonBing.getImages().get(0).getUrl();
+        Log.d("BaseAcyivity", "URL1:" + tem);
 //            构造的URL获取图片数据，并存储
-            imgHorizontal = HttpHelper.requestBytes(tem);
+        imgHorizontal = HttpHelper.requestBytes(tem);
 //            水平进行替换
 //            使用indexof检查tem的url中是否存在"1920x1080"字符串，若存在，直接.replace替换，不存在不替换
-            if (tem.indexOf("1920x1080") != -1) {
-                result = tem.replace("1920x1080", "1080x1920");
-            } else {
-                result = tem;
-            }
+        if (tem.indexOf("1920x1080") != -1) {
+            result = tem.replace("1920x1080", "1080x1920");
+        } else {
+            result = tem;
+        }
 //            在通过http的方法获得竖直图片的数据并存储
-            Log.d("BaseAcyivity", "URL2:" + result);
-            imgVertical = HttpHelper.requestBytes(result);
+        Log.d("BaseAcyivity", "URL2:" + result);
+        imgVertical = HttpHelper.requestBytes(result);
+        Log.d("BaseAcyivity", "imgVertical Length: " + imgVertical.length);
+        Log.d("BaseAcyivity", "imgHorizontal Length: " + imgHorizontal.length);
 //            每日一句
 //            1.从ConstantData.DAILY_SENTENCE_API获取每日一句的JSON数据，
 //            2.使用Gson反序列化为JsonDailySentence对象。
-            json = HttpHelper.requestResult(ConstantData.DAILY_SENTENCE_API);
+        json = HttpHelper.requestResult(ConstantData.DAILY_SENTENCE_API);
 //            GSON进行数据反序列化，转化为Java数据
-            Gson gson1 = new Gson();
+        Gson gson1 = new Gson();
 //            使用Json解析每日一句的json数据 ，及反序列化 展示英语所以只获得content就行
-            JsonDailySentence dailySentence = gson1.fromJson(json, JsonDailySentence.class);
-            Log.d("BaseActivity", "数据" + json);
+        JsonDailySentence dailySentence = gson1.fromJson(json, JsonDailySentence.class);
+        Log.d("BaseActivity", "数据" + json);
 
 //          获取每日一句的英文
-            /*
-            * 设置dailyData对象的属性，包括水平图片、垂直图片、每日一句的英文内容和当前日期时间。调用save方法将dailyData对象保存到数据库中*/
-            dailyEn = dailySentence.getContent();
-            Log.d("BaseActivity", "每日一句：" + dailyEn);
-            dailyData.setPicHorizontal(imgHorizontal);
-            dailyData.setPicVertical(imgVertical);
-            dailyData.setDailyEn(dailyEn);
-            dailyData.setDayTime(TimeController.getCurrentDateStamp() + "");
-            dailyData.save();
-        } catch (Exception e) {
-//            catch作用捕获异常
-            Log.d("BaseActivity", "prepareDailyData: " + e.toString());
+        /*
+         * 设置dailyData对象的属性，包括水平图片、垂直图片、每日一句的英文内容和当前日期时间。调用save方法将dailyData对象保存到数据库中*/
+        dailyEn = dailySentence.getContent();
+        Log.d("BaseActivity", "每日一句：" + dailyEn);
+        dailyData.setPicVertical(imgVertical);
+        dailyData.setPicHorizontal(imgHorizontal);
+        dailyData.setDailyEn(dailyEn);
+        dailyData.setDayTime(TimeController.getCurrentDateStamp() + "");
+        dailyData.save();
+//            检查是否保存数据库
+//            从3.1.0版本开始，LitePal不再支持二进制存储功能，原因楼上已经贴出来了。
+//              如果一定要使用二进制存储功能，可以考虑3.1.0以下的版本，更换litepal版本，
+//              夜间模式在3.0.0加载bing每日一图出现问题，导致闪退
+        DailyData retrievedData = LitePal.findFirst(DailyData.class); // 最近保存的数据
+        if (retrievedData != null) {
+            byte[] retrievedHorizontal = retrievedData.getPicHorizontal();
+            byte[] retrievedVertical = retrievedData.getPicVertical();
+
+            // 检查检索到的数据是否为空
+            if (retrievedHorizontal != null && retrievedVertical != null) {
+                Log.d("BaseAcyivity", "图片数据已保存到数据库");
+            } else {
+                Log.d("BaseAcyivity", "图片数据未保存到数据库或为空");
+            }
+        } else {
+            Log.d("BaseAcyivity", "未找到保存的 DailyData 实例");
         }
+    } catch (Exception e) {
+//            catch作用捕获异常
+        Log.d("BaseActivity", "prepareDailyData: " + e.toString());
     }
+}
     /*Window.setEnterTransition(Transition transition) 设置进场动画 主界面-(跳转)->A，A 进入过渡
       Window.setExitTransition(Transition transition) 设置出场动画 A-(跳转)->B，A 出场过渡
       Window.setReturnTransition(Transition transition) 设置返回动画 A-(返回)->主界面，A 出场过渡

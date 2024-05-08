@@ -27,6 +27,7 @@ public class MyApplication extends Application {
 //        如果ConfigData.getToNight()返回true，则应用将使用夜间模式；否则，应用将使用普通模式。
 
 
+
         /*AppCompatDelegate:
           AppCompatDelegate有四种模式可以设置:
           MODE_NIGHT_YES:直接指定夜间模式

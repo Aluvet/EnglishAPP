@@ -17,7 +17,7 @@ public class UserData extends LitePalSupport {
     // 日
     private int date;
 
-    // 在这一天新学多少单词
+    // 在这一天学多少单词
     private int wordLearnNumber;
 
     // 在这一天复习多少单词

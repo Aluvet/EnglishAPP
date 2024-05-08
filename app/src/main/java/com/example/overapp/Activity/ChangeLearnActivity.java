@@ -22,6 +22,7 @@ import com.example.overapp.Utils.FileUtils;
 import com.example.overapp.Utils.GSON;
 import com.example.overapp.config.ConfigData;
 import com.example.overapp.config.ConstantData;
+import com.example.overapp.database.User;
 import com.example.overapp.database.UserConfig;
 import com.example.overapp.database.UserData;
 

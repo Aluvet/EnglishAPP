@@ -31,27 +31,29 @@ public class BaiDuOcrActivity extends BaseAcyivity  {
 
     private ImageView imgWordJoinFold;
 
-    private final String[] choice = {"加入已有单词本", "自动新建单词本并存入"};
+    private final String[] choice = {"加入已有单词本", "自动新建单词本"};
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bai_du_ocr);
 //初始化
         initBaiDuOCR();
-
+//判断需要复习的单词是否为空,非空,查询列表中存在的id单词,将单词换行拼接处理
         StringBuilder stringBuilder = new StringBuilder();
         if (!WordsControllor.needLearnWords.isEmpty()) {
             for (Integer integer : WordsControllor.needLearnWords) {
                 List<Word> words = LitePal.where("wordId = ?", integer + "").select("word").find(Word.class);
                 stringBuilder.append(words.get(0).getWord() + "\n");
             }
+//            设置到对应空间
             wordResult.setText(stringBuilder.toString());
         }
-//        当用户点击背单词时，用户跳转
+//        当用户点击背单词时，对文本框中的文字进行小写并分割
         cardWordStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 String[] result = wordResult.getText().toString().toLowerCase().split("\n");
+//                分割完成后,判断是否有结果,存在使用hashmap存储单词id以及索引
                 if (result.length >= 1) {
                     WordsControllor.needLearnWords.clear();
                     HashMap<Integer, Integer> map = new HashMap<>();
@@ -168,13 +170,11 @@ public class BaiDuOcrActivity extends BaseAcyivity  {
                                                 }
                                             }
                                         }
-//                                        获得当前时间
-                                        long currentTime = TimeController.getNowTimeStamp();
+//
                                         WordFolder wordFolder = new WordFolder();
                                         wordFolder.setName("拍照取词");
-                                        wordFolder.setRemark("创建于：" + TimeController.getStringDateDetail(currentTime));
                                         if (wordFolder.save()) {
-                                            List<WordFolder> wordFolders = LitePal.where("createTime = ? and name = ?", currentTime + "", "拍照").find(WordFolder.class);
+                                            List<WordFolder> wordFolders = LitePal.where(" name = ?",  "拍照").find(WordFolder.class);
                                             if (!wordFolders.isEmpty()) {
                                                 for (int ii : map.keySet()) {
                                                     List<FolderLinkWord> folderLinkWords = LitePal.where("wordId = ? and folderId = ?", map.get(ii) + "", wordFolders.get(0).getId() + "").find(FolderLinkWord.class);
@@ -198,6 +198,7 @@ public class BaiDuOcrActivity extends BaseAcyivity  {
         });
 
     }
+//    初始化方法
     private void initBaiDuOCR() {
         wordResult = findViewById(R.id.edit_ocr_result);
         cardWordStart = findViewById(R.id.layout_ocr_bottom);
